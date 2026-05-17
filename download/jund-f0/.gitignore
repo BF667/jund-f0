@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Data
+data/
+*.npy
+*.wav
+*.flac
+*.mp3
+
+# Model checkpoints
+runs/
+*.pt
+*.pth
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual env
+.venv/
+venv/
