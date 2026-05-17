@@ -1,0 +1,3 @@
+[console_scripts]
+jund-infer = jund_f0.scripts.infer:main
+jund-train = jund_f0.scripts.train:main

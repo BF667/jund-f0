@@ -1,0 +1,50 @@
+# JUND-F0 Default Configuration
+# ===============================
+
+model:
+  sample_rate: 16000
+  n_fft: 1024
+  hop_length: 160
+  n_mels: 80
+  f_min: 50.0
+  f_max: 800.0
+  encoder_channels: 64
+  encoder_blocks: 4
+  encoder_kernel_sizes: [3, 5, 5, 5]
+  encoder_dilation_rates: [1, 1, 2, 4]
+  use_depthwise_separable: true
+  use_self_attention: true
+  num_attention_heads: 4
+  attention_dropout: 0.1
+  vuv_hidden_dim: 128
+  vuv_dropout: 0.2
+  f0_hidden_dim: 256
+  f0_dropout: 0.2
+  f0_min: 50.0
+  f0_max: 800.0
+  input_frames: 32
+  vuv_loss_weight: 1.0
+  f0_loss_weight: 1.0
+  ffe_loss_weight: 0.5
+
+train:
+  data_dir: "./data/vctk"
+  label_method: "pyin"
+  segment_length: 512
+  batch_size: 16
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  warmup_steps: 1000
+  max_steps: 100000
+  grad_clip_norm: 5.0
+  eval_interval: 2000
+  save_interval: 5000
+  log_interval: 100
+  num_workers: 4
+  use_amp: true
+  use_ema: true
+  ema_decay: 0.999
+  output_dir: "./runs/jund-f0"
+  resume_from: null
+  use_wandb: false
+  wandb_project: "jund-f0"
