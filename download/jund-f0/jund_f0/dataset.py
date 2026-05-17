@@ -216,8 +216,22 @@ class VCTKDataset(Dataset):
         import soundfile as sf
         from tqdm.auto import tqdm
 
-        ds = load_dataset("CSTR-Edinburgh/vctk", split="train", streaming=False,
-                          trust_remote_code=True)
+        try:
+            # datasets >= 3.0: use parquet revision (script-based datasets removed)
+            ds = load_dataset(
+                "CSTR-Edinburgh/vctk",
+                split="train",
+                streaming=False,
+                revision="refs/convert/parquet",
+            )
+        except Exception:
+            # datasets < 3.0: use trust_remote_code for script-based loading
+            ds = load_dataset(
+                "CSTR-Edinburgh/vctk",
+                split="train",
+                streaming=False,
+                trust_remote_code=True,
+            )
         logger.info(f"HF dataset loaded: {len(ds)} samples")
 
         self.audio_dir.mkdir(parents=True, exist_ok=True)
