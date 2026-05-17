@@ -1,5 +1,8 @@
 # JUND-F0: Joint Unvoiced/Voiced Detection and F0 Estimation
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BF667/jund-f0/blob/main/notebooks/train_colab.ipynb)
+[![GitHub](https://img.shields.io/badge/GitHub-BF667%2Fjund--f0-blue)](https://github.com/BF667/jund-f0)
+
 A PyTorch implementation of **JUND-F0**, a novel deep learning framework that jointly solves voiced/unvoiced (V/UV) detection and fundamental frequency (F0) estimation in a single unified model.
 
 **Reference:** *JUND-F0: A Novel Deep Learning Framework for Joint Unvoiced/Voiced Detection And F0 Estimation* (ICASSP 2026) — Y. Chen, R. Feng, Y.L. Liu, Y. Hu, J. Yuan
@@ -39,16 +42,19 @@ Input: Mel Spectrogram (80 bins × T frames)
 ### Installation
 
 ```bash
-git clone https://github.com/your-repo/jund-f0.git
+git clone https://github.com/BF667/jund-f0.git
 cd jund-f0
 pip install -e .
 ```
 
 ### Train on Colab
 
-1. Open `notebooks/train_colab.ipynb` in Google Colab
-2. Select GPU runtime (T4 or better)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BF667/jund-f0/blob/main/notebooks/train_colab.ipynb)
+
+1. Click the badge above or open `notebooks/train_colab.ipynb` in Google Colab
+2. Select **GPU** runtime (T4 free tier or A100 with Colab Pro)
 3. Run all cells — VCTK will be downloaded and F0 labels generated automatically
+4. Training takes ~2-4 hours for 100K steps on T4
 
 ### Train Locally
 
