@@ -33,6 +33,9 @@ dev = [
 crepe = [
     "crepe>=0.0.15",
 ]
+datasets = [
+    "datasets>=2.14",
+]
 wandb = [
     "wandb>=0.13",
 ]
