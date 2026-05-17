@@ -13,8 +13,6 @@ Handles:
 import os
 import glob
 import logging
-import zipfile
-import tarfile
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
@@ -44,10 +42,8 @@ class VCTKDataset(Dataset):
     5. Supports data augmentation
     """
 
-    # VCTK download URLs
+    # VCTK download URL (Edinburgh DataShare)
     VCTK_URL = "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip"
-    # Alternative mirror
-    VCTK_HF_URL = "https://huggingface.co/datasets/CSTR-Edinburgh/vctk/resolve/main/VCTK-Corpus-0.92.zip"
 
     def __init__(
         self,
@@ -134,35 +130,124 @@ class VCTKDataset(Dataset):
         )
 
     def _download_if_needed(self):
-        """Download VCTK corpus if not found."""
+        """Download VCTK corpus if not found.
+
+        Tries three methods in order:
+        1. HuggingFace datasets library (most reliable, no zip needed)
+        2. Direct zip download from Edinburgh DataShare
+        3. Kaggle API (if KAGGLE_USERNAME/KAGGLE_KEY set)
+        """
         if self.audio_dir.exists() and any(self.audio_dir.iterdir()):
             logger.info(f"VCTK found at {self.audio_dir}")
             return
 
         logger.info("VCTK not found. Downloading...")
-        zip_path = self.root_dir / "VCTK-Corpus-0.92.zip"
 
-        if not zip_path.exists():
-            try:
-                # Try HuggingFace mirror first (faster)
-                logger.info(f"Downloading from HuggingFace mirror...")
-                subprocess.run(
-                    ["wget", "-q", "--show-progress", self.VCTK_HF_URL, "-O", str(zip_path)],
-                    check=True,
-                )
-            except subprocess.CalledProcessError:
-                logger.info("HuggingFace mirror failed, trying official source...")
+        # Method 1: HuggingFace datasets library (recommended)
+        try:
+            logger.info("Trying HuggingFace datasets library...")
+            self._download_via_hf_datasets()
+            if self.audio_dir.exists() and any(self.audio_dir.iterdir()):
+                logger.info("VCTK downloaded via HuggingFace datasets.")
+                return
+        except Exception as e:
+            logger.warning(f"HF datasets download failed: {e}")
+
+        # Method 2: Direct zip download from Edinburgh DataShare
+        zip_path = self.root_dir / "VCTK-Corpus-0.92.zip"
+        try:
+            logger.info("Trying direct download from Edinburgh DataShare...")
+            if not zip_path.exists():
                 subprocess.run(
                     ["wget", "-q", "--show-progress", self.VCTK_URL, "-O", str(zip_path)],
                     check=True,
+                    timeout=600,
                 )
 
-        # Extract
-        logger.info("Extracting VCTK...")
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(self.root_dir)
+            # Validate zip file before extracting
+            import zipfile as zf_module
+            if zf_module.is_zipfile(zip_path):
+                logger.info("Extracting VCTK...")
+                with zf_module.ZipFile(zip_path, "r") as zf:
+                    zf.extractall(self.root_dir)
+                logger.info("VCTK extraction complete.")
+                return
+            else:
+                logger.warning("Downloaded file is not a valid zip. Removing...")
+                zip_path.unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Direct download failed: {e}")
+            zip_path.unlink(missing_ok=True)
 
-        logger.info("VCTK download and extraction complete.")
+        # Method 3: Kaggle
+        try:
+            logger.info("Trying Kaggle download...")
+            subprocess.run(
+                ["kaggle", "datasets", "download", "-d", "kynthesis/vctk-corpus",
+                 "-p", str(self.root_dir), "--unzip"],
+                check=True,
+                timeout=600,
+            )
+            if self.audio_dir.exists() and any(self.audio_dir.iterdir()):
+                logger.info("VCTK downloaded via Kaggle.")
+                return
+        except Exception as e:
+            logger.warning(f"Kaggle download failed: {e}")
+
+        raise RuntimeError(
+            "All download methods failed. Please download VCTK manually:\n"
+            "  1. pip install datasets && python -c \"from datasets import load_dataset; load_dataset('CSTR-Edinburgh/vctk')\"\n"
+            "  2. Download from https://datashare.ed.ac.uk/handle/10283/3443\n"
+            "  3. Download from https://www.kaggle.com/datasets/kynthesis/vctk-corpus\n"
+            f"Then extract to {self.root_dir} so that {self.audio_dir}/ exists."
+        )
+
+    def _download_via_hf_datasets(self):
+        """Download VCTK using the HuggingFace datasets library."""
+        try:
+            from datasets import load_dataset
+        except ImportError:
+            subprocess.run(
+                ["pip", "install", "-q", "datasets"],
+                check=True,
+            )
+            from datasets import load_dataset
+
+        import soundfile as sf
+        from tqdm.auto import tqdm
+
+        ds = load_dataset("CSTR-Edinburgh/vctk", split="train", streaming=False,
+                          trust_remote_code=True)
+        logger.info(f"HF dataset loaded: {len(ds)} samples")
+
+        self.audio_dir.mkdir(parents=True, exist_ok=True)
+
+        saved = 0
+        for item in tqdm(ds, total=len(ds), desc="Saving VCTK audio"):
+            # Extract speaker ID
+            speaker_id = item.get("speaker_id", item.get("id", "unknown"))
+            if isinstance(speaker_id, int):
+                speaker_id = f"p{speaker_id}"
+
+            speaker_dir = self.audio_dir / str(speaker_id)
+            speaker_dir.mkdir(parents=True, exist_ok=True)
+
+            # Extract file ID
+            file_id = item.get("file", item.get("id", f"{saved:04d}"))
+            if isinstance(file_id, str) and "/" in file_id:
+                file_id = Path(file_id).stem
+
+            out_path = speaker_dir / f"{file_id}.flac"
+
+            if "audio" in item and item["audio"] is not None:
+                audio_data = item["audio"]
+                wav = audio_data.get("array")
+                sr = audio_data.get("sampling_rate", 48000)
+                if wav is not None:
+                    sf.write(str(out_path), wav, sr)
+                    saved += 1
+
+        logger.info(f"Saved {saved} audio files to {self.audio_dir}")
 
     def _scan_files(self, speaker_list: Optional[List[str]] = None) -> List[Dict]:
         """Scan audio directory and build file list."""
